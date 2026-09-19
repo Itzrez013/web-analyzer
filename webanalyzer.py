@@ -1,5 +1,8 @@
 import requests
 import typer
+import json
+import re
+
 
 from rich.console import Console
 from rich.table import Table
@@ -21,6 +24,95 @@ def text_color(stat):
     if stat == 404:
         return "[red]"
     return "[yellow]"
+
+
+def load_fingerprints():
+    with open("fingerprints.json", encoding="utf-8") as f:
+        return json.load(f)
+
+
+def fetch_site(url):
+    return requests.get(url, timeout=10)
+
+
+def match_html(fingerprint, html):
+    pattern = fingerprint.get("html")
+
+    if not pattern:
+        return False
+
+    try:
+        return bool(re.search(pattern, html, re.I))
+    except re.error:
+        return False
+
+
+def match_headers(fingerprint, headers):
+    patterns = fingerprint.get("headers")
+
+    if not patterns:
+        return False
+
+    for name, pattern in patterns.items():
+        value = headers.get(name)
+
+        if value is None:
+            continue
+
+        try:
+            if re.search(pattern, value, re.I):
+                return True
+        except re.error:
+            pass
+
+    return False
+
+
+def match_cookies(fingerprint, cookies):
+    patterns = fingerprint.get("cookies")
+
+    if not patterns:
+        return False
+
+    for cookie_name in patterns:
+        if cookie_name in cookies:
+            return True
+
+    return False
+
+
+def analyze_site(url):
+    fingerprints = load_fingerprints()
+    response = fetch_site(url)
+
+    detected = []
+
+    for name, fingerprint in fingerprints.items():
+
+        if match_html(fingerprint, response.text):
+            detected.append(name)
+            continue
+
+        if match_headers(fingerprint, response.headers):
+            detected.append(name)
+            continue
+
+        if match_cookies(fingerprint, response.cookies):
+            detected.append(name)
+            continue
+
+    return detected
+
+
+@app.command()
+def analyze(
+    url: str,
+):
+    results = analyze_site(url)
+
+    for technology in results:
+        console.print(f"[green]✓[/green] {technology}")
+
 
 
 @app.command()
