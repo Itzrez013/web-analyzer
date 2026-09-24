@@ -9,7 +9,7 @@ from rich.table import Table
 from rich.panel import Panel
 from rich.progress import Progress
 
-app = typer.Typer()
+app = typer.Typer(pretty_exceptions_enable=True,rich_markup_mode="rich",no_args_is_help=True,context_settings={"help_option_names": ["-h", "--help"]},add_completion=False)
 console = Console()
 
 
@@ -38,12 +38,36 @@ def format_size(size):
 
 @app.command()
 def scan(
-    host: str,
-    urls: str = typer.Argument(""),
-    file: bool = typer.Option(False, "-f", "--file"),
-    size: bool = typer.Option(False,"-s","--size"),
-
+    host: str = typer.Argument(..., help="Target website"),
+    urls: str = typer.Argument("", help="URL or file containing URLs"),
+    file: bool = typer.Option(
+        False,
+        "-f",
+        "--file",
+        help="Treat the URLs argument as a file.",
+    ),
+    size: bool = typer.Option(
+        False,
+        "-s",
+        "--size",
+        help="Show response size.",
+    ),
 ):
+    """
+    [bold cyan]Scan a website for URLs.[/bold cyan]
+
+    Send HTTP requests to the specified URLs and display
+    their status codes.
+
+    [bold yellow]Examples:[/bold yellow]
+
+        [green]webanalyzer scan https://example.com admin[/green]
+
+        [green]webanalyzer scan -f https://example.com urls.txt[/green]
+
+        [green]webanalyzer scan -s https://example.com admin[/green]
+    """
+    
     if not host:
         host = input("give me your host name: ")
 
@@ -136,6 +160,8 @@ def scan(
             )
 
     console.print(table)
+
+
 
 
 if __name__ == "__main__":
